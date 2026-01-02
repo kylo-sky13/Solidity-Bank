@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {Bank} from "../src/Bank.sol";
-import {Test} from "../lib/forge-std/src/Test.sol";
+import {Bank} from "../../src/Bank.sol";
+import {Test} from "../../lib/forge-std/src/Test.sol";
 import {StdInvariant} from "lib/forge-std/src/StdInvariant.sol";
 
 contract BankInvariantTest is StdInvariant, Test {

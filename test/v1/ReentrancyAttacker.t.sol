@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
-import {Bank} from "../src/Bank.sol";
+import {Bank} from "../../src/Bank.sol";
 
 contract ReentrancyAttacker {
     Bank bank;

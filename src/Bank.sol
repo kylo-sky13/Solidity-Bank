@@ -1,3 +1,6 @@
+/// @notice v1 ETH Vault — FROZEN
+/// @dev Do not modify. See BankV2.sol for new development.
+
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
