@@ -3,7 +3,7 @@ pragma solidity ^0.8.20;
 
 import {Bank} from "../src/Bank.sol";
 import {Test} from "../lib/forge-std/src/Test.sol";
-import {ReentrancyAttacker} from "../test/ReentrancyAttacker.t.sol";
+import {ReentrancyAttacker} from "test/ReentrancyAttacker.sol";
 
 contract BankTest is Test {
     Bank bank;
