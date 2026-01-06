@@ -1,232 +1,248 @@
-# 🏦 BankV2 — Strict ERC20 Vault with Invariant-Driven Security
+# Solidity Bank — BankV3
 
-`BankV2` is a minimal, security-focused ERC20 vault that supports **multi-token deposits and withdrawals** with **strict accounting guarantees**.
+A **production-grade, security-first ERC4626 vault** built as an educational and portfolio project.
 
-The contract is intentionally conservative: no yield, no shares, no upgradeability — only **correct ERC20 custody** enforced through invariants and adversarial testing.
+BankV3 represents the third iteration of the Solidity Bank series, evolving from simple balance-based accounting into a **share-based financial primitive** that strictly follows ERC4626 semantics.
 
----
-
-## ✨ Key Properties
-
-* Multi-token ERC20 vault
-* Exact accounting per user per token
-* No admin fund access
-* Fee-on-transfer tokens rejected
-* ERC777-style callbacks blocked
-* Reentrancy-safe withdrawals
-* Pause as a pure circuit breaker
-* Invariant-tested with Foundry
+This repository prioritizes **correctness, invariants, and explicit threat modeling over features**.
 
 ---
 
-## 🚫 Explicit Non-Goals
+## Project Overview
 
-BankV2 does **not** support:
+**BankV3** is a:
 
-* ETH deposits
-* ERC4626 or vault shares
-* Rebasing tokens
-* Fee-on-transfer tokens
-* ERC777 tokens
-* Upgradeability
-* Admin withdrawals
-* Yield generation
+* ✅ Single-asset-per-deployment ERC4626 vault
+* ✅ Share-based accounting model
+* ✅ Donation-safe and fee-on-transfer aware
+* ✅ Deterministic, vault-favoring rounding
+* ❌ No yield, no strategies, no fees
+* ❌ No governance, no upgrades
 
-All exclusions are **intentional** and enforced.
+It is designed to be **auditable, minimal, and mathematically correct**.
 
 ---
 
-## 🪙 Accounting Model
+## Version History
 
-### Storage Layout
+| Version | Description                            |
+| ------- | -------------------------------------- |
+| **V1**  | ETH-only vault with balance accounting |
+| **V2**  | ERC20 single-asset vault (no shares)   |
+| **V3**  | ERC4626-compliant share-based vault    |
 
-```solidity
-mapping(address => mapping(address => uint256)) balances;
-// user => token => amount
-
-mapping(address => uint256) totalBalances;
-// token => total deposited
-```
+Each version is **frozen and tagged** once complete.
 
 ---
 
-## 📐 Core Invariants
+## Core Design Principles
 
-For every ERC20 token `T`:
+### 1. ERC4626 Is the Sole Source of Truth
 
-### 1. Conservation of Balances
+* User ownership is represented exclusively via ERC20 shares
+* No parallel balance mappings
+* All asset ownership is derived proportionally
 
 ```
-Σ balances[user][T] == totalBalances[T]
+userAssets = shares × totalAssets / totalSupply
 ```
 
-### 2. Solvency
+### Running Tests
+
+Run the full test suite:
 
 ```
-IERC20(T).balanceOf(address(this)) >= totalBalances[T]
-```
-
-### 3. Token Isolation
-
-Operations on token `T` never affect accounting for token `U ≠ T`.
-
-### 4. Pause Safety
-
-When paused:
-
-* Deposits revert
-* Withdrawals revert
-* No state changes occur
-
-These properties are enforced using **fuzzed invariant tests**.
-
----
-
-## 🔐 Security Design
-
-### ERC20 Safety
-
-* Uses OpenZeppelin `SafeERC20`
-* Explicitly rejects:
-
-  * Fee-on-transfer tokens
-  * Tokens returning `false`
-  * Tokens transferring incorrect amounts
-
-### Reentrancy Defense
-
-* Withdrawals protected by `ReentrancyGuard`
-* State updates occur **before** external calls
-
-### Admin Controls
-
-* Owner can pause / unpause only
-* Owner cannot move funds or edit balances
-* Pause is strictly non-custodial
-
----
-
-## 🔧 Public Interface
-
-### Deposit
-
-```solidity
-function depositToken(address token, uint256 amount) external;
-```
-
-**Requirements**
-
-* Contract not paused
-* `token != address(0)`
-* `amount > 0`
-* Exact amount received
-
----
-
-### Withdraw
-
-```solidity
-function withdrawToken(address token, uint256 amount) external;
-```
-
-**Requirements**
-
-* Contract not paused
-* `amount > 0`
-* Sufficient balance
-* Reentrancy-safe
-
----
-
-### Views
-
-```solidity
-function balanceOf(address user, address token) external view returns (uint256);
-function totalBalanceOf(address token) external view returns (uint256);
-```
-
----
-
-## 🧪 Testing Strategy
-
-Security is validated through **unit, attack, and invariant tests**.
-
-### Unit Tests
-
-* Deposit increases balances
-* Withdraw decreases balances
-* Insufficient withdrawals revert
-* Token isolation holds
-* Pause blocks state changes
-
-### Attack Tests
-
-* Fee-on-transfer token deposit reverts
-* ERC20 returning `false` is rejected
-* ERC777-style callback attack fails
-* Reentrancy during withdraw fails
-
-### Invariant Tests (Fuzzed)
-
-* Sum of balances equals total balance
-* Vault always solvent
-* No state changes while paused
-
----
-
-## 📂 Repository Structure (V2 Only)
-
-```
-src/
- └── BankV2.sol
-
-test/
- ├── BankV2Test.t.sol
- ├── BankV2AttackTest.t.sol
- ├── BankInvariantV2.t.sol
- ├── BankV2Handler.sol
- ├── mocks/
- │   ├── ERC777LikeERC20.sol
- │   ├── ERC777CallbackAttacker.sol
- │   ├── FalseReturnERC20.sol
- │   ├── FeeOnTransferERC20.sol
- │   ├── ReentrantWithdrawer.sol
- │   └── ReentrancyAttacker.sol
-```
-
-Mocks are **test-only** and used to simulate hostile ERC20 behavior.
-
----
-
-## 🛠 Tooling
-
-* Solidity `^0.8.20`
-* Foundry
-* OpenZeppelin Contracts
-
-Run all tests:
-
-```bash
 forge test
 ```
 
-Run only invariant tests:
+Run tests with verbosity:
 
-```bash
-forge test --match-contract BankV2InvariantTest
+```
+forge test -vv
+```
+
+Run invariant tests only:
+
+```
+forge test --match-test invariant
+```
+
+Generate a coverage report:
+
+```
+forge coverage
 ```
 
 ---
 
-## ⚠️ Disclaimer
+### 2. Conservative, Deterministic Math
 
-This repository is for educational and research purposes only.
-The contracts have **not** been formally audited.
+* All conversions are proportional
+* Rounding **always favors the vault**
+* Rounding dust remains in the vault
+* No user can extract value via rounding
+
+| Operation       | Rounding |
+| --------------- | -------- |
+| convertToShares | DOWN     |
+| convertToAssets | DOWN     |
+| deposit         | DOWN     |
+| mint            | UP       |
+| withdraw        | UP       |
+| redeem          | DOWN     |
 
 ---
 
-## 🧠 Philosophy
+### 3. Donation & Fee-on-Transfer Safety
 
-> Simple contracts with explicit invariants are harder to break than complex contracts with hidden assumptions.
+* Deposits use **balance-delta accounting**
+* Forced transfers are treated as donations
+* Donations increase share value but **never mint shares**
 
-BankV2 is designed to be **provable, minimal, and hostile-environment safe**.
+---
+
+### 4. Minimal Trust Assumptions
+
+* ERC20 token is treated as adversarial
+* No reliance on hooks, callbacks, or rebase behavior
+* No admin access to funds
+
+---
+
+## Accounting Model
+
+Let:
+
+* `S = totalSupply()` (total shares)
+* `A = totalAssets()` (underlying asset balance)
+
+Ownership is proportional:
+
+```
+assets = shares × A / S
+```
+
+### Zero-Supply Bootstrap
+
+* First depositor mints shares 1:1 with assets
+* Initial exchange rate is exactly 1.0
+
+---
+
+## Security Model
+
+The contract is built around **explicit invariants and threat modeling**.
+
+### Key Guarantees
+
+* Solvency: `totalAssets() == asset.balanceOf(vault)`
+* Conservation: shares ↔ assets are always proportional
+* No share inflation or deflation attacks
+* Reentrancy-safe via CEI + ReentrancyGuard
+* Pause disables all asset movement
+
+### Documents
+
+* `SPEC_V3.md`
+* `INVARIANTS_V3.md`
+* `THREAT_MODEL_V3.md`
+
+These documents define what *must never break*.
+
+---
+
+## Testing Strategy
+
+Tests are written using **Foundry** and follow an invariant-first approach.
+
+### Test Coverage
+
+* ERC4626 preview / execution parity
+* Rounding correctness (up and down semantics)
+* Donation and forced-transfer safety
+* Pause semantics
+* maxDeposit / maxMint / maxWithdraw / maxRedeem correctness
+* Reentrancy resistance
+* Solvency invariants under fuzzing
+
+Example invariant:
+
+```
+totalAssets() >= convertToAssets(totalSupply())
+```
+
+---
+
+## Tech Stack
+
+* **Solidity** `^0.8.20`
+* **OpenZeppelin Contracts** (ERC20, ERC4626)
+* **Foundry** for testing
+
+---
+
+## Explicit Non-Goals
+
+BankV3 intentionally does NOT:
+
+* Generate yield or interest
+* Deploy assets into strategies
+* Support multiple assets per vault
+* Support rebasing or ERC777 tokens
+* Include governance or admin-controlled economics
+* Implement upgrades or migrations
+
+Any of the above belong in future versions.
+
+---
+
+## Asset Requirements
+
+The underlying ERC20 **MUST**:
+
+* Be non-rebasing
+* Not be ERC777
+* Not implement transfer hooks or callbacks
+* Only change balances via transfers
+
+Violating these assumptions breaks accounting invariants.
+
+---
+
+## Repository Structure
+
+```
+src/
+ └─ BankV3.sol
+
+test/
+ └─ BankV3Test.t.sol
+
+docs/
+ ├─ SPEC_V3.md
+ ├─ INVARIANTS_V3.md
+ └─ THREAT_MODEL_V3.md
+```
+
+---
+
+## Project Philosophy
+
+This project is built as a **learning and demonstration artifact**, not a production deployment recommendation.
+
+The goal is to show:
+
+* How to design before coding
+* How invariants drive implementation
+* How ERC4626 should be implemented conservatively
+* How to reason about financial smart contracts
+
+---
+
+## License
+
+MIT
+
+---
+
+**BankV3 — A correctness-first ERC4626 vault.**
