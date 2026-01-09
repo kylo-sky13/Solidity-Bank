@@ -8,9 +8,9 @@ import {IERC20} from "lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.so
 import {ERC20} from "lib/openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
 import {IStrategy} from "../../src/BankV4.sol";
 import {StdInvariant} from "lib/forge-std/src/StdInvariant.sol";
-import {MockERC20} from "lib/openzeppelin-contracts/lib/forge-std/src/mocks/MockERC20.sol";
+import {MockERC20} from "test/BankV4Test.t.sol";
 
-contract BankV4Handler is StdInvariant, Test {
+contract BankV4Handler is Test {
     BankV4 public bank;
     MockStrategy public strategy;
     IERC20 public asset;
@@ -86,6 +86,39 @@ contract BankV4Handler is StdInvariant, Test {
         amount = bound(amount, 1, managed);
         strategy.simulateLoss(amount);
     }
+}
+
+contract BankV4InvariantTest is StdInvariant, Test {
+    BankV4 internal bank;
+    MockStrategy internal strategy;
+    MockERC20 internal asset;
+
+    address internal user1 = address(0x1);
+    address internal user2 = address(0x2);
+
+    function setUp() public {
+        // Deploy mock ERC20 asset
+        asset = new MockERC20();
+
+        // Deploy strategy FIRST (vault not known yet)
+        strategy = new MockStrategy(IERC20(address(asset)));
+
+        // Deploy BankV4 vault
+        bank = new BankV4(IERC20(address(asset)), IStrategy(address(strategy)), "BankV4 Share", "bV4");
+
+        // Wire vault into strategy (one-time)
+        strategy.setVault(address(bank));
+
+        // Fund test user
+        asset.mint(user1, 1_000 ether);
+
+        // Approvals
+        vm.prank(user1);
+        asset.approve(address(bank), type(uint256).max);
+    }
+    /*//////////////////////////////////////////////////////////////
+                              INVARIANTS
+    //////////////////////////////////////////////////////////////*/
 
     function invariant_totalAssetsEqualsIdlePlusStrategy() public {
         uint256 idleAssets = IERC20(address(asset)).balanceOf(address(bank));

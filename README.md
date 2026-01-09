@@ -1,66 +1,120 @@
-## Foundry
+# BankV4 — ERC4626 Vault with External Strategy
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+BankV4 is a security-first ERC4626 vault that supports external strategy deployment while preserving strict ERC4626 accounting guarantees.
 
-Foundry consists of:
+This version focuses on:
+- Explicit asset movement
+- No hidden share minting or burning
+- Loss and gain socialization via price-per-share (PPS)
+- Strong unit tests and invariant tests (Foundry-style)
 
-- **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
-- **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
-- **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
-- **Chisel**: Fast, utilitarian, and verbose solidity REPL.
 
-## Documentation
+## Repository Structure
 
-https://book.getfoundry.sh/
+```
+src/
+├── strategy/
+│   └── MockStrategy.sol
+└── BankV4.sol
 
-## Usage
-
-### Build
-
-```shell
-$ forge build
+test/
+├── Invariant/
+│   └── BankV4Invariant.t.sol
+└── BankV4Test.t.sol
 ```
 
-### Test
+## Core Contracts
 
-```shell
-$ forge test
+### `BankV4.sol`
+
+An ERC4626 vault with manual strategy integration.
+
+#### Key Properties
+- ERC4626 preview ↔ execution parity
+- No auto-deploy on deposit
+- Strategy gains/losses reflected via PPS
+- Withdrawals unwind strategy only when needed
+- No share inflation
+
+#### Trust Model
+- Strategy must report `totalAssets()` honestly
+- Strategy insolvency is surfaced via reverts
+- Vault never mints or burns shares outside ERC4626 logic
+
+### `MockStrategy.sol`
+
+A minimal external strategy used for testing.
+
+#### Features
+- Internal accounting (`managedAssets`)
+- Manual `simulateGain()` and `simulateLoss()`
+- Explicit insolvency modeling
+- Vault-only access control
+
+This strategy is intentionally simple to make vault invariants observable.
+
+## Tests
+
+### Unit Tests — `BankV4Test.t.sol`
+
+Covers deterministic behavior such as:
+- Deposits mint correct shares
+- Deposits do NOT auto-deploy to strategy
+- Manual deployment correctness
+- Withdrawals using idle assets first
+- Strategy unwinding on withdrawal
+- Loss socialization across users
+
+### Invariant Tests — `BankV4Invariant.t.sol`
+
+Uses Foundry's invariant framework with a Handler pattern.
+
+#### Handler (`BankV4Handler`)
+
+Defines all fuzzable actions:
+- `deposit`
+- `withdraw`
+- `deploy`
+- `gain`
+- `loss`
+
+#### Invariants
+
+Checked after every fuzz sequence:
+
+```solidity
+invariant_totalAssetsEqualsIdlePlusStrategy
+invariant_noShareInflation
 ```
 
-### Format
+These ensure:
+- Vault accounting always balances
+- Shares are never inflated beyond assets
 
-```shell
-$ forge fmt
+## Running Tests
+
+### Run All Tests
+
+```bash
+forge test -vvv
 ```
 
-### Gas Snapshots
+### Run Only Unit Tests
 
-```shell
-$ forge snapshot
+```bash
+forge test --match-path test/BankV4Test.t.sol -vvv
 ```
 
-### Anvil
+### Run Only Invariant Tests
 
-```shell
-$ anvil
+```bash
+forge test --match-path test/Invariant/BankV4Invariant.t.sol -vvv
 ```
 
-### Deploy
+### Run Invariant Tests with Coverage
 
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
+```bash
+forge coverage --match-path test/Invariant/BankV4Invariant.t.sol
 ```
 
-### Cast
-
-```shell
-$ cast <subcommand>
-```
-
-### Help
-
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
-```
+> **Note:** High revert counts during invariant testing are expected and correct.
