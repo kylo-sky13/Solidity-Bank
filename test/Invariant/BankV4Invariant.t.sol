@@ -10,7 +10,7 @@ import {IStrategy} from "../../src/BankV4.sol";
 import {StdInvariant} from "lib/forge-std/src/StdInvariant.sol";
 import {MockERC20} from "lib/openzeppelin-contracts/lib/forge-std/src/mocks/MockERC20.sol";
 
-contract BankV4Handler is Test {
+contract BankV4Handler is StdInvariant, Test {
     BankV4 public bank;
     MockStrategy public strategy;
     IERC20 public asset;

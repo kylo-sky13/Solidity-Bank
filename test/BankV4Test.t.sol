@@ -25,7 +25,7 @@ contract MockERC20 is ERC20 {
                         BANK V4 TESTS
 //////////////////////////////////////////////////////////////*/
 
-contract BankV4Test is StdInvariant, Test {
+contract BankV4Test is Test {
     BankV4 internal bank;
     MockStrategy internal strategy;
     MockERC20 internal asset;
